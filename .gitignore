@@ -29,4 +29,7 @@ Thumbs.db
 *.log
 *.local.yaml
 
+# 本地环境变量（仅 .env.example 可提交）
 .env
+.env.*
+!.env.example

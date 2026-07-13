@@ -1,45 +1,55 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
   <hashTree>
-    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Grab Order Load Test" enabled="true">
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Grab Order Load Test">
       <stringProp name="TestPlan.comments">司机抢单接口压测 - smart-mobility-gozero</stringProp>
-      <boolProp name="TestPlan.functional_mode">false</boolProp>
-      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
-      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
         <collectionProp name="Arguments.arguments">
           <elementProp name="HOST" elementType="Argument">
             <stringProp name="Argument.name">HOST</stringProp>
             <stringProp name="Argument.value">localhost</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="PORT" elementType="Argument">
             <stringProp name="Argument.name">PORT</stringProp>
             <stringProp name="Argument.value">18888</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="ORDER_NO" elementType="Argument">
             <stringProp name="Argument.name">ORDER_NO</stringProp>
             <stringProp name="Argument.value">REPLACE_WITH_ORDER_NO</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
           <elementProp name="DRIVER_TOKEN" elementType="Argument">
             <stringProp name="Argument.name">DRIVER_TOKEN</stringProp>
             <stringProp name="Argument.value">REPLACE_WITH_DRIVER_JWT</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
         </collectionProp>
       </elementProp>
     </TestPlan>
     <hashTree>
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Grab Order Threads" enabled="true">
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Grab Order Threads">
+        <intProp name="ThreadGroup.num_threads">50</intProp>
+        <intProp name="ThreadGroup.ramp_time">5</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
-        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
-          <boolProp name="LoopController.continue_forever">false</boolProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
           <stringProp name="LoopController.loops">10</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
         </elementProp>
-        <stringProp name="ThreadGroup.num_threads">50</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">5</stringProp>
-        <boolProp name="ThreadGroup.scheduler">false</boolProp>
       </ThreadGroup>
       <hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST grab/order" enabled="true">
-          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST grab/order">
+          <stringProp name="HTTPSampler.domain">${HOST}</stringProp>
+          <stringProp name="HTTPSampler.port">${PORT}</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.path">/order/auth/grab/order</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="用户定义的变量">
             <collectionProp name="Arguments.arguments">
               <elementProp name="order_no" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">true</boolProp>
@@ -50,16 +60,9 @@
               </elementProp>
             </collectionProp>
           </elementProp>
-          <stringProp name="HTTPSampler.domain">${HOST}</stringProp>
-          <stringProp name="HTTPSampler.port">${PORT}</stringProp>
-          <stringProp name="HTTPSampler.protocol">http</stringProp>
-          <stringProp name="HTTPSampler.path">/order/auth/grab/order</stringProp>
-          <stringProp name="HTTPSampler.method">POST</stringProp>
-          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
-          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
         </HTTPSamplerProxy>
         <hashTree>
-          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager" enabled="true">
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager">
             <collectionProp name="HeaderManager.headers">
               <elementProp name="" elementType="Header">
                 <stringProp name="Header.name">token</stringProp>
@@ -73,7 +76,7 @@
           </HeaderManager>
           <hashTree/>
         </hashTree>
-        <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report" enabled="true">
+        <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report">
           <boolProp name="ResultCollector.error_logging">false</boolProp>
           <objProp>
             <name>saveConfig</name>

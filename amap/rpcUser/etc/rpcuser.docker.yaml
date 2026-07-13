@@ -1,0 +1,6 @@
+Name: rpcuser.rpc
+ListenOn: 0.0.0.0:8081
+Etcd:
+  Hosts:
+    - etcd:2379
+  Key: rpcuser.rpc

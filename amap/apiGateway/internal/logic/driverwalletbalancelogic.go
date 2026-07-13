@@ -1,0 +1,42 @@
+// Code scaffolded by goctl. Safe to edit.
+// goctl 1.10.1
+
+package logic
+
+import (
+	"apiGateway/internal/middleware"
+	"apiGateway/internal/svc"
+	"apiGateway/internal/types"
+	"context"
+	"rpcDriver/rpcDriver"
+
+	"github.com/zeromicro/go-zero/core/logx"
+)
+
+type DriverWalletBalanceLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewDriverWalletBalanceLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DriverWalletBalanceLogic {
+	return &DriverWalletBalanceLogic{
+		Logger: logx.WithContext(ctx),
+		ctx:    ctx,
+		svcCtx: svcCtx,
+	}
+}
+
+func (l *DriverWalletBalanceLogic) DriverWalletBalance(req *types.DriverWalletBalanceReq) (resp *types.CommonResp, err error) {
+	driverId, err := middleware.GetTokenUserId(l.ctx)
+	if err != nil {
+		return middleware.FailResponse(err.Error())
+	}
+	data, err := l.svcCtx.RpcDriver.GetWalletBalance(l.ctx, &rpcDriver.GetWalletBalanceReq{
+		DriverId: int64(driverId),
+	})
+	if err != nil {
+		return middleware.FailResponse(err.Error())
+	}
+	return middleware.SuccessResponse(data)
+}

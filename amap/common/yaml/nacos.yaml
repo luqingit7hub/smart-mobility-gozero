@@ -1,0 +1,8 @@
+NaCos:
+  Host: "101.126.151.92"
+  Port: 8848
+  NamespaceId: ""
+  User: ""
+  Password: ""
+  DataId: "amap-lq"
+  Group: "DEFAULT_GROUP"

@@ -1,0 +1,177 @@
+syntax = "proto3";
+
+package rpcOrder;
+option go_package="./rpcOrder";
+
+message Request {
+  string ping = 1;
+}
+
+message Response {
+  string pong = 1;
+}
+message OrderRpcTestReq {
+  string msg = 1;
+}
+
+message OrderRpcTestResp {
+  string status = 1;
+}
+
+message JourneyReq {
+  string startingPoint = 1;
+  string destination = 2;
+  int64 uid = 3;
+}
+
+message RoutePoint {
+  double lng = 1;
+  double lat = 2;
+}
+
+message JourneyResp {
+  float price = 1;
+  int64 distance = 2;
+  int64 duration = 3;
+  int64 status = 4;
+  int64 waittine = 5;
+  string start_adcode = 6;    // 起点行政区划代码，供前端筛券
+  string start_city_name = 7; // 起点城市名
+  double start_lng = 8;
+  double start_lat = 9;
+  double end_lng = 10;
+  double end_lat = 11;
+  repeated RoutePoint route_points = 12;
+}
+
+message TakeCarReq {
+  string startingPoint = 1;
+  string destination = 2;
+  int64 uid = 3;
+  int64 tid = 4; // 优惠券id，0表示不使用
+}
+
+message TakeCarResp {
+  int64 status = 1;   // 路况
+  float price = 2;    // 优惠后实付金额
+  float distance = 3; // 公里
+  int64 duration = 4; // 分钟
+  string text = 5;
+  string orderNo = 6;
+}
+
+message GrabListReq {
+  int64 driverId = 1;
+  int64 radiusM = 2;  // 搜索半径(米)，默认5000
+  int32 limit = 3;    // 返回条数，默认20
+}
+
+message GrabOrderItem {
+  string orderNo = 1;
+  int64 userId = 2;
+  double startLng = 3;
+  double startLat = 4;
+  string startAddress = 5;
+  double endLng = 6;
+  double endLat = 7;
+  string endAddress = 8;
+  double distance = 9;
+  int64 duration = 10;
+  double price = 11;
+  int64 expiresAt = 12;
+  double distanceToDriver = 13;
+  int64 status = 14; // 2已接单 5用户已上车
+}
+
+message GrabListResp {
+  repeated GrabOrderItem orders = 1;
+}
+
+message GrabOrderReq {
+  int64 driverId = 1;
+  string orderNo = 2;
+}
+
+message GrabOrderResp {
+  int32 code = 1;    // 0成功 1已被抢 2司机忙 3过期 5系统错
+  string msg = 2;
+  string orderNo = 3;
+}
+
+message OrderOverReq {
+  int64 driverId = 1;
+  string orderNo = 2;
+}
+
+message OrderOverResp {
+  string status = 1;
+}
+
+message StartOrderReq {
+  int64 driverId = 1;
+  string orderNo = 2;
+  string phoneTail = 3; // 乘客手机号后四位
+}
+
+message StartOrderResp {
+  string status = 1;
+  string msg = 2;
+}
+
+message CancelOrderReq {
+  int64 uid = 1;
+  string orderNo = 2;
+  string reason = 3; // 取消原因，可选
+}
+
+message CancelOrderResp {
+  string msg = 1;
+}
+
+message DriverOngoingReq {
+  int64 driverId = 1;
+}
+
+message DriverOngoingResp {
+  bool hasOrder = 1;
+  GrabOrderItem order = 2;
+}
+
+message UserOngoingItem {
+  string orderNo = 1;
+  int64 status = 2;        // 1待接单 2已接单 5用户已上车
+  string startAddress = 3;
+  string endAddress = 4;
+  double distance = 5;
+  int64 duration = 6;
+  double price = 7;
+  int64 driverId = 8;
+  string driverName = 9;
+  string carNumber = 10;
+  string carType = 11;
+  double driverRating = 12;
+  int64 acceptAt = 13;     // 接单时间 unix 秒
+}
+
+message UserOngoingReq {
+  int64 uid = 1;
+}
+
+message UserOngoingResp {
+  bool hasOrder = 1;
+  UserOngoingItem order = 2;
+}
+
+service RpcOrder {
+  rpc Ping(Request) returns(Response);
+  rpc OrderRpcTest(OrderRpcTestReq) returns(OrderRpcTestResp);
+  rpc Journey(JourneyReq) returns (JourneyResp);
+  rpc TakeCar(TakeCarReq) returns (TakeCarResp);
+  rpc GrabList(GrabListReq) returns (GrabListResp);
+  rpc GrabOrder(GrabOrderReq) returns (GrabOrderResp);
+  rpc OrderOver(OrderOverReq) returns (OrderOverResp);
+  rpc StartOrder(StartOrderReq) returns (StartOrderResp);
+  rpc CancelOrder(CancelOrderReq) returns (CancelOrderResp);
+  rpc DriverOngoing(DriverOngoingReq) returns (DriverOngoingResp);
+  rpc UserOngoing(UserOngoingReq) returns (UserOngoingResp);
+}

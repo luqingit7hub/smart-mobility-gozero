@@ -1,0 +1,181 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: amap-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - amap_mysql_data:/var/lib/mysql
+    networks:
+      - amap-net
+
+  elasticsearch:
+    image: elasticsearch:7.17.6
+    container_name: amap-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    ports:
+      - "9201:9200"
+    volumes:
+      - amap_es_data:/usr/share/elasticsearch/data
+    networks:
+      - amap-net
+
+  redis:
+    image: redis:8
+    container_name: amap-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - amap_redis_data:/data
+    networks:
+      - amap-net
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: amap-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - amap-net
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.16
+    container_name: amap-etcd
+    command:
+      - etcd
+      - --advertise-client-urls=http://etcd:2379
+      - --listen-client-urls=http://0.0.0.0:2379
+    ports:
+      - "2379:2379"
+    networks:
+      - amap-net
+
+  rpcuser:
+    build:
+      context: .
+      dockerfile: amap/rpcUser/Dockerfile
+    image: amap-rpcuser:0.1
+    container_name: amap-rpcuser
+    ports:
+      - "18081:8081"
+    volumes:
+      - ./amap/common/yaml/nacos.docker.yaml:/app/common/yaml/nacos.yaml:ro
+    depends_on:
+      - etcd
+      - mysql
+      - redis
+      - elasticsearch
+    restart: unless-stopped
+    networks:
+      - amap-net
+
+  rpcdriver:
+    build:
+      context: .
+      dockerfile: amap/rpcDriver/Dockerfile
+    image: amap-rpcdriver:0.1
+    container_name: amap-rpcdriver
+    ports:
+      - "18082:8082"
+    volumes:
+      - ./amap/common/yaml/nacos.docker.yaml:/app/common/yaml/nacos.yaml:ro
+    depends_on:
+      - etcd
+      - mysql
+      - redis
+    restart: unless-stopped
+    networks:
+      - amap-net
+
+  rpcorder:
+    build:
+      context: .
+      dockerfile: amap/rpcOrder/Dockerfile
+    image: amap-rpcorder:0.1
+    container_name: amap-rpcorder
+    ports:
+      - "18083:8083"
+    volumes:
+      - ./amap/common/yaml/nacos.docker.yaml:/app/common/yaml/nacos.yaml:ro
+    depends_on:
+      - etcd
+      - mysql
+      - redis
+      - elasticsearch
+      - rabbitmq
+    restart: unless-stopped
+    networks:
+      - amap-net
+
+  rpcmap:
+    build:
+      context: .
+      dockerfile: amap/rpcMap/Dockerfile
+    image: amap-rpcmap:0.1
+    container_name: amap-rpcmap
+    ports:
+      - "18084:8084"
+    volumes:
+      - ./amap/common/yaml/nacos.docker.yaml:/app/common/yaml/nacos.yaml:ro
+    depends_on:
+      - etcd
+      - mysql
+      - redis
+      - elasticsearch
+    restart: unless-stopped
+    networks:
+      - amap-net
+
+  apigateway:
+    build:
+      context: .
+      dockerfile: amap/apiGateway/Dockerfile
+    image: amap-apigateway:0.1
+    container_name: amap-apigateway
+    ports:
+      - "18888:8888"
+    volumes:
+      - ./amap/common/yaml/nacos.docker.yaml:/app/common/yaml/nacos.yaml:ro
+    depends_on:
+      - etcd
+      - mysql
+      - redis
+      - elasticsearch
+      - rabbitmq
+      - rpcuser
+      - rpcdriver
+      - rpcorder
+      - rpcmap
+    restart: unless-stopped
+    networks:
+      - amap-net
+
+  web:
+    build:
+      context: .
+      dockerfile: amap-uni/Dockerfile
+    image: amap-web:0.1
+    container_name: amap-web
+    ports:
+      - "80:80"
+    depends_on:
+      - apigateway
+    restart: unless-stopped
+    networks:
+      - amap-net
+
+volumes:
+  amap_mysql_data:
+  amap_redis_data:
+  amap_es_data:
+networks:
+  amap-net:
+    driver: bridge

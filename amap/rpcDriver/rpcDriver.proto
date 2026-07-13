@@ -1,0 +1,195 @@
+syntax = "proto3";
+
+package rpcDriver;
+option go_package="./rpcDriver";
+
+message Request {
+  string ping = 1;
+}
+
+message Response {
+  string pong = 1;
+}
+
+message DriverRpcTestReq {
+  string msg = 1;
+}
+
+message DriverRpcTestResp {
+  string status = 1;
+}
+
+message SmsReq {
+  string phone = 1;
+}
+
+message SmsResp {
+  string status = 1;
+}
+
+message DriverRegReq {
+  string phone = 1;
+  string password = 2;
+  string code = 3;
+}
+
+message DriverRegResp {
+  string msg = 1;
+}
+
+message DriverLoginReq {
+  string phone = 1;
+  string password = 2;
+  string code = 3;
+  int64 type = 4;
+  double lng = 5;
+  double lat = 6;
+}
+
+message DriverLoginResp {
+  int64 id = 1;
+  string msg = 2;
+}
+
+message RealNameReq {
+  int64 uid = 1;
+  string card_no = 2;
+  string real_name = 3;
+  string avatar = 4;
+  string car_number = 5;
+  string car_type = 6;
+  string car_color = 7;
+  string license_photo = 8;
+  string vehicle_photo = 9;
+  string email = 10;
+}
+
+message RealNameResp {
+  string msg = 1;
+}
+
+message GetRealNameStatusReq {
+  int64 driver_id = 1;
+}
+
+message GetRealNameStatusResp {
+  bool verified = 1;       // 是否已资质认证成功
+  int32 status = 2;        // 1正常 2未实名 3禁用
+  string status_name = 3;
+  string real_name = 4;    // 脱敏姓名，未认证为空
+  string car_number = 5;
+  string car_type = 6;
+  string car_color = 7;
+  string avatar = 8;
+}
+
+message DriverOfflineReq {
+  int64 driverId = 1;
+}
+
+message DriverOfflineResp {
+  bool success = 1;
+  string msg = 2;
+}
+
+message GetWalletBalanceReq {
+  int64 driver_id = 1;
+}
+
+message GetWalletBalanceResp {
+  double balance = 1;
+}
+
+message ListWalletLogsReq {
+  int64 driver_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  string order_no = 4;
+}
+
+message WalletLogItem {
+  int64 id = 1;
+  string order_no = 2;
+  double amount = 3;
+  double signed_amount = 4;
+  string direction = 5;
+  double balance_before = 6;
+  double balance_after = 7;
+  int32 type = 8;
+  string type_name = 9;
+  int32 status = 10;
+  string status_name = 11;
+  string remark = 12;
+  string created_at = 13;
+}
+
+message ListWalletLogsResp {
+  repeated WalletLogItem list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ListOrdersReq {
+  int64 driver_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  string order_no = 4;
+  int32 status = 5; // 0全部 1待接单 2已接单 3已完成 4已取消
+}
+
+message OrderListItem {
+  int64 id = 1;
+  string order_no = 2;
+  int64 user_id = 3;
+  int64 driver_id = 4;
+  string start_address = 5;
+  string end_address = 6;
+  double distance = 7;
+  int64 duration = 8;
+  double price = 9;
+  int32 pay_type = 10;
+  int32 status = 11;
+  string status_name = 12;
+  string cancel_reason = 13;
+  string accept_time = 14;
+  string created_at = 15;
+}
+
+message ListOrdersResp {
+  repeated OrderListItem list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message GetOrderRatingReq {
+  int64 driver_id = 1;
+  string order_no = 2;
+}
+
+message GetOrderRatingResp {
+  int64 id = 1;
+  string order_no = 2;
+  int64 user_id = 3;
+  int64 driver_id = 4;
+  int64 rating = 5;
+  string comment = 6;
+  string tags = 7;
+  string created_at = 8;
+}
+
+service RpcDriver {
+  rpc Ping(Request) returns(Response);
+  rpc DriverRpcTest(DriverRpcTestReq) returns(DriverRpcTestResp);
+  rpc Sms(SmsReq) returns(SmsResp);
+  rpc DriverReg(DriverRegReq) returns(DriverRegResp);
+  rpc DriverLogin(DriverLoginReq) returns(DriverLoginResp);
+  rpc RealName(RealNameReq) returns(RealNameResp);
+  rpc GetRealNameStatus(GetRealNameStatusReq) returns(GetRealNameStatusResp);
+  rpc Offline(DriverOfflineReq) returns (DriverOfflineResp);
+  rpc GetWalletBalance(GetWalletBalanceReq) returns (GetWalletBalanceResp);
+  rpc ListWalletLogs(ListWalletLogsReq) returns (ListWalletLogsResp);
+  rpc ListOrders(ListOrdersReq) returns (ListOrdersResp);
+  rpc GetOrderRating(GetOrderRatingReq) returns (GetOrderRatingResp);
+}

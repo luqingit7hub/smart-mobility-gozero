@@ -1,0 +1,28 @@
+Name: rpcmap.rpc
+ListenOn: 0.0.0.0:8084
+Timeout: 60000
+Etcd:
+  Hosts:
+    - etcd:2379
+  Key: rpcmap.rpc
+
+RpcUser:
+  Etcd:
+    Hosts:
+      - etcd:2379
+    Key: rpcuser.rpc
+  Timeout: 60000
+
+RpcDriver:
+  Etcd:
+    Hosts:
+      - etcd:2379
+    Key: rpcdriver.rpc
+  Timeout: 60000
+
+RpcOrder:
+  Etcd:
+    Hosts:
+      - etcd:2379
+    Key: rpcorder.rpc
+  Timeout: 60000

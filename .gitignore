@@ -1,0 +1,32 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# --- Frontend：克隆后 npm install 生成 ---
+amap-uni/node_modules/
+amap-uni/dist/
+amap-uni/.vite/
+
+# --- IDE / 系统杂项 ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# --- 日志与本地覆盖配置 ---
+*.log
+*.local.yaml
+
+.env

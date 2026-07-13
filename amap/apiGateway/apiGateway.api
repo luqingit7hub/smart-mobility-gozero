@@ -1,0 +1,359 @@
+syntax = "v1"
+
+// apiGateway：对外 HTTP 入口，把请求转发到 rpcUser / rpcDriver / rpcOrder / rpcMap。
+// 网约车核心链路（第1～9步）相关接口集中在下方「需登录 rpc-order」区块。
+type Request {
+	Name string `path:"name,options=you|me"`
+}
+
+type Response {
+	Message string `json:"message"`
+}
+
+type CommonResp {
+	Code int         `json:"code"`
+	Msg  string      `json:"msg"`
+	Data interface{} `json:"data"`
+}
+
+type UserRpcTestReq { //测试用户连通性
+	Msg string `form:"msg"`
+}
+
+type DriverRpcTestReq { //测试司机连通性
+	Msg string `form:"msg"`
+}
+
+type OrderRpcTestReq { //测试订单连通性
+	Msg string `form:"msg"`
+}
+
+type MapRpcTestReq { //测试地图连通性
+	Msg string `form:"msg"`
+}
+
+type UserSmsReq {
+	Phone string `form:"phone"`
+}
+
+type UserRegisterReq {
+	Phone    string `form:"phone"`
+	Password string `form:"password"`
+	Code     string `form:"code"`
+}
+
+type UserLoginReq {
+	Phone    string  `form:"phone"`
+	Password string  `form:"password,optional"`
+	Code     string  `form:"code,optional"`
+	Type     int64   `form:"type"`
+	Lng      float64 `form:"lng,optional"`
+	Lat      float64 `form:"lat,optional"`
+}
+
+type DriverSmsReq {
+	Phone string `form:"phone"`
+}
+
+type DriverRegisterReq {
+	Phone    string `form:"phone"`
+	Password string `form:"password"`
+	Code     string `form:"code"`
+}
+
+type DriverLoginReq {
+	Phone    string  `form:"phone"`
+	Password string  `form:"password,optional"`
+	Code     string  `form:"code,optional"`
+	Type     int64   `form:"type"`
+	Lng      float64 `form:"lng,optional"`
+	Lat      float64 `form:"lat,optional"`
+}
+
+type UserRealNameReq {
+	CardNo   string `form:"card_no"`
+	RealName string `form:"real_name"`
+	Nickname string `form:"nickname,optional"`
+	Gender   int64  `form:"gender,optional"`
+	Email    string `form:"email,optional"`
+}
+
+type UserRealNameStatusReq {}
+
+type DriverRealNameReq {
+	CardNo    string `form:"card_no"`
+	RealName  string `form:"real_name"`
+	Email     string `form:"email"`
+	CarNumber string `form:"car_number"`
+	CarType   string `form:"car_type"`
+	CarColor  string `form:"car_color"`
+}
+
+type DriverRealNameStatusReq {}
+
+type OrderJourneyReq {
+	StartingPoint string `form:"starting_point"` //起点
+	Destination   string `form:"destination"` //终点
+}
+
+type OrderTakeCarReq {
+	StartingPoint string `form:"starting_point"` //起点
+	Destination   string `form:"destination"` //终点
+	Tid           int64  `form:"tid,optional"` //优惠券id，0或不传表示不用
+}
+
+type OrderGrabListReq {
+	Radius int64 `form:"radius,optional"` //搜索半径(米)，默认5000
+	Limit  int64 `form:"limit,optional"` //返回条数，默认20
+}
+
+type OrderGrabOrderReq {
+	OrderNo string `form:"order_no"` //订单号
+}
+
+type OrderOverReq {
+	OrderNo string `form:"order_no"` //订单号
+}
+
+type OrderStartOrderReq {
+	OrderNo   string `form:"order_no"` //订单号
+	PhoneTail string `form:"phone_tail"` //乘客手机号后四位
+}
+
+type OrderCancelOrderReq {
+	OrderNo string `form:"order_no"` //订单号
+	Reason  string `form:"reason,optional"` //取消原因
+}
+
+type OrderDriverOngoingReq {}
+
+type OrderUserOngoingReq {}
+
+type UserAliPayBalanceReq {
+	Money float64 `form:"money"` //充值金额
+}
+
+type UserListCouponsReq {}
+
+type UserWalletBalanceReq {}
+
+type UserWalletLogsReq {
+	Page     int64  `form:"page,optional"`
+	PageSize int64  `form:"page_size,optional"`
+	OrderNo  string `form:"order_no,optional"`
+}
+
+type UserOrderListReq {
+	Page     int64  `form:"page,optional"`
+	PageSize int64  `form:"page_size,optional"`
+	OrderNo  string `form:"order_no,optional"`
+	Status   int64  `form:"status,optional"` // 0全部 1待接单 2已接单 3已完成 4已取消 5用户已上车
+}
+
+type UserRateOrderReq {
+	OrderNo string `form:"order_no"` // 订单号
+	Rating  int64  `form:"rating"` // 1-5 星
+	Comment string `form:"comment,optional"` // 评价内容
+	Tags    string `form:"tags,optional"` // 标签 JSON 数组，如 ["准时","服务好"]
+}
+
+type UserOrderRatingReq {
+	OrderNo string `form:"order_no"` // 订单号
+}
+
+type DriverOfflineReq {}
+
+type DriverWalletBalanceReq {}
+
+type DriverWalletLogsReq {
+	Page     int64  `form:"page,optional"`
+	PageSize int64  `form:"page_size,optional"`
+	OrderNo  string `form:"order_no,optional"`
+}
+
+type DriverOrderListReq {
+	Page     int64  `form:"page,optional"`
+	PageSize int64  `form:"page_size,optional"`
+	OrderNo  string `form:"order_no,optional"`
+	Status   int64  `form:"status,optional"` // 0全部 1待接单 2已接单 3已完成 4已取消 5用户已上车
+}
+
+type DriverOrderRatingReq {
+	OrderNo string `form:"order_no"` // 订单号
+}
+
+type MapGetCoordinatesReq {
+	Address string `form:"address"` //地址
+	Type    int64  `form:"type"` //1用户 2司机
+}
+
+type MapReverseGeocodeReq {
+	Lng float64 `form:"lng"`
+	Lat float64 `form:"lat"`
+}
+
+type MapIssueCouponsReq {
+	Address   string  `form:"address"` // 目标地区地址，服务端转城市编码
+	Type      int64   `form:"type"` // 1现金券 2折扣券 3免费乘车券
+	MoneyQuan float64 `form:"money_quan,optional"`
+	Discount  float64 `form:"discount,optional"`
+	OutTime   string  `form:"out_time"` // 2006-01-02 15:04:05
+}
+
+type MapChatReq {
+	Question string `form:"question"` // 用户问题
+	Type     int64  `form:"type"` // 1=闲聊 2=业务助手
+}
+
+// ========== 无需登录：注册、登录、连通性测试 ==========
+service apiGateway-api {
+	@handler ApiGatewayHandler
+	get /from/:name (Request) returns (Response) // go-zero 脚手架示例，可忽略
+
+	////////////////////////////////用户路由////////////////////////////////
+	@handler UserRpcTestHandler
+	post /user/rpc/test (UserRpcTestReq) returns (CommonResp) // 测试 apiGateway → rpcUser 是否连通
+
+	@handler UserSmsHandler
+	post /user/sms (UserSmsReq) returns (CommonResp) // 乘客获取短信验证码（注册/登录用）
+
+	@handler UserRegisterHandler
+	post /user/register (UserRegisterReq) returns (CommonResp) // 乘客注册账号
+
+	@handler UserLoginHandler
+	post /user/login (UserLoginReq) returns (CommonResp) // 乘客登录，返回 JWT（后续接口放 Header token）
+
+	@handler UserBalanceNotifyHandler
+	post /user/balance/notify returns (CommonResp) // 支付宝充值异步回调（支付成功后加余额）
+
+	////////////////////////////////司机路由////////////////////////////////
+	@handler DriverRpcTestHandler
+	post /driver/rpc/test (DriverRpcTestReq) returns (CommonResp) // 测试 apiGateway → rpcDriver 是否连通
+
+	@handler DriverSmsHandler
+	post /driver/sms (DriverSmsReq) returns (CommonResp) // 司机获取短信验证码
+
+	@handler DriverRegisterHandler
+	post /driver/register (DriverRegisterReq) returns (CommonResp) // 司机注册账号
+
+	@handler DriverLoginHandler
+	post /driver/login (DriverLoginReq) returns (CommonResp) // 司机登录，返回 JWT（抢单/完单等用同一 token 字段 userId）
+
+	////////////////////////////////订单路由////////////////////////////////
+	@handler OrderRpcTestHandler
+	post /order/rpc/test (OrderRpcTestReq) returns (CommonResp) // 测试 apiGateway → rpcOrder 是否连通
+
+	////////////////////////////////地图路由////////////////////////////////
+	@handler MapRpcTestHandler
+	post /map/rpc/test (MapRpcTestReq) returns (CommonResp) // 测试 apiGateway → rpcMap 是否连通
+}
+
+// ========== 需登录：Header 带 token，UserAuth 中间件解析 userId ==========
+@server (
+	middleware: UserAuth
+)
+service apiGateway-api {
+	@handler AuthRpcTestHandler
+	post /auth/rpc/test (UserRpcTestReq) returns (CommonResp) // 测试登录态与中间件是否生效
+
+	////////////////////////////////用户路由////////////////////////////////
+	@handler UserRealNameHandler
+	post /user/auth/real/name (UserRealNameReq) returns (CommonResp) // 乘客实名认证
+
+	@handler UserRealNameStatusHandler
+	post /user/auth/real/name/status (UserRealNameStatusReq) returns (CommonResp) // 乘客查询实名认证状态
+
+	@handler UserAliPayBalanceHandler
+	post /user/auth/alipay/balance (UserAliPayBalanceReq) returns (CommonResp) // 乘客发起支付宝余额充值
+
+	@handler UserListCouponsHandler
+	post /user/auth/list/coupons (UserListCouponsReq) returns (CommonResp) // 乘客按用户id查询全部优惠券
+
+	@handler UserWalletBalanceHandler
+	post /user/auth/wallet/balance (UserWalletBalanceReq) returns (CommonResp) // 乘客查询账户余额
+
+	@handler UserWalletLogsHandler
+	post /user/auth/wallet/logs (UserWalletLogsReq) returns (CommonResp) // 乘客分页查询钱包流水
+
+	@handler UserOrderListHandler
+	post /user/auth/order/list (UserOrderListReq) returns (CommonResp) // 乘客分页查询历史订单
+
+	@handler UserRateOrderHandler
+	post /user/auth/rate/order (UserRateOrderReq) returns (CommonResp) // 乘客评价已完成订单
+
+	@handler UserOrderRatingHandler
+	post /user/auth/order/rating (UserOrderRatingReq) returns (CommonResp) // 乘客按订单号查看单条评价
+
+	@handler UserDeleteOrderRatingHandler
+	post /user/auth/order/rating/delete (UserOrderRatingReq) returns (CommonResp) // 乘客按订单号删除自己的评价
+
+	////////////////////////////////司机////////////////////////////////
+	@handler DriverRealNameHandler
+	post /driver/auth/real/name (DriverRealNameReq) returns (CommonResp) // 司机实名认证并绑定车辆信息
+
+	@handler DriverRealNameStatusHandler
+	post /driver/auth/real/name/status (DriverRealNameStatusReq) returns (CommonResp) // 司机查询资质认证状态
+
+	@handler DriverOfflineHandler
+	post /driver/auth/offline (DriverOfflineReq) returns (CommonResp) // 司机下线（有进行中订单时不允许）
+
+	@handler DriverWalletBalanceHandler
+	post /driver/auth/wallet/balance (DriverWalletBalanceReq) returns (CommonResp) // 司机查询账户余额
+
+	@handler DriverWalletLogsHandler
+	post /driver/auth/wallet/logs (DriverWalletLogsReq) returns (CommonResp) // 司机分页查询钱包流水
+
+	@handler DriverOrderListHandler
+	post /driver/auth/order/list (DriverOrderListReq) returns (CommonResp) // 司机分页查询历史订单
+
+	@handler DriverOrderRatingHandler
+	post /driver/auth/order/rating (DriverOrderRatingReq) returns (CommonResp) // 司机按订单号查看单条评价
+
+	////////////////////////////////rpc-order：网约车核心链路（第4～8步 HTTP 入口）////////////////////////////////
+	@handler OrderJourneyHandler
+	post /order/auth/journey (OrderJourneyReq) returns (CommonResp) // 【行前】询价：根据起终点算价格/距离/时长，不下单
+
+	@handler OrderTakeCarHandler
+	post /order/auth/take/car (OrderTakeCarReq) returns (CommonResp) // 【第4步】乘客下单：写 MySQL、入 Redis 抢单池、发延迟 MQ
+
+	@handler OrderGrabListHandler
+	post /order/auth/grab/list (OrderGrabListReq) returns (CommonResp) // 【第5步】司机拉附近待接单列表（需司机 token + 已上线有定位）
+
+	@handler OrderGrabOrderHandler
+	post /order/auth/grab/order (OrderGrabOrderReq) returns (CommonResp) // 【第5步】司机抢单：Redis Lua 原子抢单 → Stream 异步落库
+
+	@handler OrderOverHandler
+	post /order/auth/order/over (OrderOverReq) returns (CommonResp) // 【第8步】司机完单：扣乘客款、司机/平台分账、通知乘客
+
+	@handler OrderStartOrderHandler
+	post /order/auth/start/order (OrderStartOrderReq) returns (CommonResp) // 司机确认乘客上车：校验手机号后四位，status 2→5，通知乘客
+
+	@handler OrderCancelOrderHandler
+	post /order/auth/cancel/order (OrderCancelOrderReq) returns (CommonResp) // 乘客取消订单：仅待接单可取消，清 Redis 池并改 MySQL 状态
+
+	@handler OrderDriverOngoingHandler
+	post /order/auth/driver/ongoing (OrderDriverOngoingReq) returns (CommonResp) // 司机查询进行中订单（从 MySQL 读取）
+
+	@handler OrderUserOngoingHandler
+	post /order/auth/user/ongoing (OrderUserOngoingReq) returns (CommonResp) // 乘客查询进行中订单（待接单/已接单/行程中）
+
+	////////////////////////////////地图////////////////////////////////
+	@handler MapGetCoordinatesHandler
+	post /map/auth/get/coordinates (MapGetCoordinatesReq) returns (CommonResp) // 地址转经纬度；type=2 时顺带更新司机在线位置（抢单列表依赖）
+
+	@handler MapReverseGeocodeHandler
+	post /map/auth/reverse/geocode (MapReverseGeocodeReq) returns (CommonResp) // 经纬度转地址（地图选点）
+
+	@handler MapIssueCouponsHandler
+	post /map/auth/issue/coupons (MapIssueCouponsReq) returns (CommonResp) // 公司账户(999)按地址向同城用户发券
+
+	@handler UserMapChatHandler
+	post /user/auth/map/chat (MapChatReq) returns (CommonResp) // 乘客 AI 对话（登录后 type=1闲聊 / type=2业务）
+
+	@handler DriverMapChatHandler
+	post /driver/auth/map/chat (MapChatReq) returns (CommonResp) // 司机 AI 对话（登录后 type=1闲聊 / type=2业务）
+// 注：第9步 WebSocket 在 apigateway.go 手动注册，不在此 api 文件：
+// GET /ws/user?token=   乘客收接单/取消/完单推送
+// GET /ws/driver?token= 司机收附近新单推送
+}
+

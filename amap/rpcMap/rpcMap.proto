@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package rpcMap;
+option go_package="./rpcMap";
+
+message Request {
+  string ping = 1;
+}
+
+message Response {
+  string pong = 1;
+}
+
+message MapRpcTestReq {
+  string msg = 1;
+}
+
+message MapRpcTestResp {
+  string status = 1;
+}
+
+message GetCoordinatesReq {
+  string address = 1;
+  int64 uid = 2;
+  int64 type = 3;
+}
+
+message GetCoordinatesResp {
+  string address = 1;
+  double lng = 2;
+  double lat = 3;
+}
+
+// IssueCouponsReq 公司账户按地址向同城用户批量发券
+message IssueCouponsReq {
+  string address = 1;   // 目标地区地址（地理编码 → 城市 adcode）
+  int64 type = 2;       // 1现金券 2折扣券 3免费乘车券
+  double money_quan = 3;
+  double discount = 4;
+  string out_time = 5;  // 过期时间 2006-01-02 15:04:05
+  int64 operator_uid = 6;
+}
+
+message IssueCouponsResp {
+  string status = 1;
+  string city_code = 2;
+  string city_name = 3;
+  int32 issued_count = 4;
+  int32 skipped_count = 5;
+}
+message ReverseGeocodeReq {
+  double lng = 1;
+  double lat = 2;
+  int64 uid = 3;
+}
+
+message ReverseGeocodeResp {
+  string address = 1;
+  double lng = 2;
+  double lat = 3;
+}
+
+message MapChatReq {
+  string question = 1;
+  int32  type     = 2;  // 1=闲聊 2=业务助手
+  int64  uid      = 3;  // 网关从 token 注入，type=2 时必填
+  int32  role     = 4;  // 1=乘客 2=司机，type=2 时必填
+}
+
+message MapChatResp {
+  string answer = 1;
+}
+service RpcMap {
+  rpc Ping(Request) returns(Response);
+  rpc MapRpcTest(MapRpcTestReq) returns(MapRpcTestResp);
+  rpc GetCoordinates(GetCoordinatesReq) returns (GetCoordinatesResp);
+  rpc ReverseGeocode(ReverseGeocodeReq) returns (ReverseGeocodeResp);
+  rpc IssueCoupons(IssueCouponsReq) returns (IssueCouponsResp);
+  rpc MapChat(MapChatReq) returns (MapChatResp);
+}

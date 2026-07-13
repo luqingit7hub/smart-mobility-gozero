@@ -1,0 +1,30 @@
+Name: apiGateway-api
+Host: 0.0.0.0
+Port: 8888
+Timeout: 60000
+
+RpcUser:
+  Etcd:
+    Hosts:
+      - etcd:2379
+    Key: rpcuser.rpc
+
+RpcDriver:
+  Etcd:
+    Hosts:
+      - etcd:2379
+    Key: rpcdriver.rpc
+
+RpcOrder:
+  Etcd:
+    Hosts:
+      - etcd:2379
+    Key: rpcorder.rpc
+  Timeout: 15000
+
+RpcMap:
+  Etcd:
+    Hosts:
+      - etcd:2379
+    Key: rpcmap.rpc
+  Timeout: 60000

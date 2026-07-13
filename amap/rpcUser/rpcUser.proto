@@ -1,0 +1,247 @@
+syntax = "proto3";
+
+package rpcUser;
+option go_package="./rpcUser";
+
+message Request {
+  string ping = 1;
+}
+
+message Response {
+  string pong = 1;
+}
+
+message UserRpcTestReq {
+  string msg = 1;
+}
+
+message UserRpcTestResp {
+  string status = 1;
+}
+
+message SmsReq {
+  string phone = 1;
+}
+
+message SmsResp {
+  string status = 1;
+}
+
+message RegisterReq {
+  string phone = 1;
+  string password = 2;
+  string code = 4;
+}
+
+message RegisterResp {
+  int64 id = 1;
+}
+
+message LoginReq {
+  string phone = 1;
+  string password = 2;
+  string code = 3;
+  int64 type = 4;
+  double lng = 5;
+  double lat = 6;
+}
+
+message LoginResp {
+  int64 id = 1;
+}
+
+message RealNameReq {
+  int64 uid = 1;
+  string card_no = 2;
+  string real_name = 3;
+  string nickname = 4;
+  string avatar = 5;
+  int64 gender = 6;
+  string email = 7;
+}
+
+message RealNameResp {
+  string msg = 1;
+}
+
+message GetRealNameStatusReq {
+  int64 uid = 1;
+}
+
+message GetRealNameStatusResp {
+  bool verified = 1;       // 是否已实名认证成功
+  int32 status = 2;        // 1正常 2未实名 3禁用
+  string status_name = 3;
+  string real_name = 4;    // 脱敏姓名，未认证为空
+  string nickname = 5;
+  string avatar = 6;
+}
+
+message BalanceNotifyReq {
+  map<string, string> form = 1;
+}
+
+message BalanceNotifyResp {
+  string result = 1;
+}
+
+message AliPayBalanceReq {
+  double price = 1;
+  int64 uid = 2;
+}
+
+message AliPayBalanceResp {
+  string alipayUrl = 1;
+}
+
+// ListCouponsReq 按用户 id 查询其全部优惠券
+message ListCouponsReq {
+  int64 uid = 1;
+  int64 type = 2; // 已废弃，不再参与筛选
+}
+
+message CouponItem {
+  int64 id = 1;
+  int64 type = 2;
+  double money_quan = 3;
+  double discount = 4;
+  string city_code = 5;
+  string out_time = 6;
+  string type_name = 7;
+}
+
+message ListCouponsResp {
+  repeated CouponItem list = 1;
+  int32 count = 2;
+}
+
+// RateOrderReq 乘客评价已完成订单
+message RateOrderReq {
+  int64 uid = 1;
+  string order_no = 2;
+  int64 rating = 3;   // 1-5 星
+  string comment = 4;   // 评价内容，可选
+  string tags = 5;    // 标签 JSON 数组字符串，可选
+}
+
+message RateOrderResp {
+  string msg = 1;
+  int64 rating_id = 2;
+  double driver_rating = 3; // 评价后司机最新平均分
+}
+
+message GetWalletBalanceReq {
+  int64 uid = 1;
+}
+
+message GetWalletBalanceResp {
+  double balance = 1;
+}
+
+message ListWalletLogsReq {
+  int64 uid = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  string order_no = 4;
+}
+
+message WalletLogItem {
+  int64 id = 1;
+  string order_no = 2;
+  double amount = 3;
+  double signed_amount = 4;
+  string direction = 5;
+  double balance_before = 6;
+  double balance_after = 7;
+  int32 type = 8;
+  string type_name = 9;
+  int32 status = 10;
+  string status_name = 11;
+  string remark = 12;
+  string created_at = 13;
+}
+
+message ListWalletLogsResp {
+  repeated WalletLogItem list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ListOrdersReq {
+  int64 uid = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  string order_no = 4;
+  int32 status = 5; // 0全部 1待接单 2已接单 3已完成 4已取消
+}
+
+message OrderListItem {
+  int64 id = 1;
+  string order_no = 2;
+  int64 user_id = 3;
+  int64 driver_id = 4;
+  string start_address = 5;
+  string end_address = 6;
+  double distance = 7;
+  int64 duration = 8;
+  double price = 9;
+  int32 pay_type = 10;
+  int32 status = 11;
+  string status_name = 12;
+  string cancel_reason = 13;
+  string accept_time = 14;
+  string created_at = 15;
+}
+
+message ListOrdersResp {
+  repeated OrderListItem list = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message GetOrderRatingReq {
+  int64 uid = 1;
+  string order_no = 2;
+}
+
+message GetOrderRatingResp {
+  int64 id = 1;
+  string order_no = 2;
+  int64 user_id = 3;
+  int64 driver_id = 4;
+  int64 rating = 5;
+  string comment = 6;
+  string tags = 7;
+  string created_at = 8;
+}
+
+message DeleteOrderRatingReq {
+  int64 uid = 1;
+  string order_no = 2;
+}
+
+message DeleteOrderRatingResp {
+  string msg = 1;
+  double driver_rating = 2; // 删除后司机最新平均分
+}
+
+service RpcUser {
+  rpc Ping(Request) returns(Response);
+  rpc UserRpcTest(UserRpcTestReq) returns(UserRpcTestResp);
+  rpc Sms(SmsReq) returns(SmsResp);
+  rpc Register(RegisterReq) returns(RegisterResp);
+  rpc Login(LoginReq) returns(LoginResp);
+  rpc RealName(RealNameReq) returns(RealNameResp);
+  rpc GetRealNameStatus(GetRealNameStatusReq) returns(GetRealNameStatusResp);
+  rpc BalanceNotify(BalanceNotifyReq) returns (BalanceNotifyResp);
+  rpc AliPayBalance(AliPayBalanceReq) returns (AliPayBalanceResp);
+  rpc ListCoupons(ListCouponsReq) returns (ListCouponsResp);
+  rpc RateOrder(RateOrderReq) returns (RateOrderResp);
+  rpc GetWalletBalance(GetWalletBalanceReq) returns (GetWalletBalanceResp);
+  rpc ListWalletLogs(ListWalletLogsReq) returns (ListWalletLogsResp);
+  rpc ListOrders(ListOrdersReq) returns (ListOrdersResp);
+  rpc GetOrderRating(GetOrderRatingReq) returns (GetOrderRatingResp);
+  rpc DeleteOrderRating(DeleteOrderRatingReq) returns (DeleteOrderRatingResp);
+}

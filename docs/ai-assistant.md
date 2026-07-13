@@ -30,9 +30,39 @@ flowchart LR
 | `question` | 用户问题 |
 | `type` | `1` = 纯闲聊；`2` = 业务助手（启用 Tool） |
 
-## 分层策略
+## 分层策略与防幻觉
 
 实现位于 `amap/common/ai/biz.go` → `BizChatWithFallback`：
+
+```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant B as BizChatWithFallback
+    participant I as 意图直答
+    participant A as Eino Agent
+    participant T as Tool/RPC
+
+    U->>B: question
+    B->>I: tryDirectBizAnswer
+    alt 意图命中
+        I->>T: 直接 RPC
+        T-->>U: 真实数据
+    else 未命中
+        B->>A: BizChat + Tools
+        A->>T: Tool Calling
+        T-->>A: JSON 结果
+        A-->>B: 生成回答
+        alt IsAckOnlyAnswer（客套话）
+            B->>I: 二次直答兜底
+            I->>T: 强制 RPC
+            T-->>U: 真实数据
+        else 有效回答
+            B-->>U: Agent 回答
+        end
+    end
+```
+
+### 三层流程（文字版）
 
 ```
 用户提问
@@ -47,6 +77,22 @@ flowchart LR
 ```
 
 **目的**：简单问题不走大模型，降低延迟与 token 成本；模型「敷衍」时仍能用规则兜底查到真实数据。
+
+### 防幻觉具体手段
+
+| 层级 | 机制 | 说明 |
+|------|------|------|
+| **Prompt 约束** | Agent Instruction | 明确要求「查余额/订单必须先调 Tool，禁止编造」 |
+| **Tool 强制** | Eino ToolsConfig | 业务数据只能来自 RPC 返回值，模型仅负责组织语言 |
+| **意图旁路** | `detectBizIntent` + 正则 | 高频问题（余额、订单、优惠券）直接 RPC，不经过 LLM |
+| **客套话检测** | `IsAckOnlyAnswer` | 识别「我来帮您查一下」等空话（≥2 个客套词且回复 <40 字），触发二次直答 |
+| **身份注入** | `withSession(ctx, uid, role)` | uid/role 由服务端注入，模型无需用户提供，减少社工式幻觉 |
+
+`IsAckOnlyAnswer` 判断逻辑（`common/ai/agent.go`）：
+
+- 若回复含 `¥`、`余额为`、数字+`元` → 视为有效数据，非客套
+- 若含 ≥2 个「我来/帮您/查一下/稍等」等词且总长 <40 字 → 判定为客套，走兜底
+
 
 ## Tool 列表
 

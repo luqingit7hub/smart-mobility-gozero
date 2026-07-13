@@ -25,25 +25,39 @@ jobs:
         working-directory: amap/common
         run: go test ./pool/... -v -count=1
 
-      - name: Build apiGateway
+      - name: Go vet common
+        working-directory: amap/common
+        run: go vet ./...
+
+      - name: Build and vet apiGateway
         working-directory: amap/apiGateway
-        run: go build .
+        run: |
+          go vet ./...
+          go build .
 
-      - name: Build rpcOrder
+      - name: Build and vet rpcOrder
         working-directory: amap/rpcOrder
-        run: go build .
+        run: |
+          go vet ./...
+          go build .
 
-      - name: Build rpcUser
+      - name: Build and vet rpcUser
         working-directory: amap/rpcUser
-        run: go build .
+        run: |
+          go vet ./...
+          go build .
 
-      - name: Build rpcDriver
+      - name: Build and vet rpcDriver
         working-directory: amap/rpcDriver
-        run: go build .
+        run: |
+          go vet ./...
+          go build .
 
-      - name: Build rpcMap
+      - name: Build and vet rpcMap
         working-directory: amap/rpcMap
-        run: go build .
+        run: |
+          go vet ./...
+          go build .
 
   frontend-build:
     name: Frontend Build

@@ -1,5 +1,7 @@
 # smart-mobility-gozero
 
+![CI](https://github.com/luqingit7hub/smart-mobility-gozero/actions/workflows/ci.yml/badge.svg)
+
 智慧出行网约车平台 —— 基于 **go-zero** 的乘客 / 司机双端业务系统，覆盖叫车、抢单、行程、支付、评价全流程，并集成 **AI 出行助手**（CloudWeGo Eino ADK + Tool Calling）。
 
 > 本项目为个人作品展示仓库（业务代码脱敏后的可运行快照），用于面试与技术交流。
@@ -23,7 +25,28 @@ cd amap/common
 go test ./pool/... -v -count=1
 ```
 
-**更多文档**：[压测说明](docs/benchmark/README.md) · [AI 助手](docs/ai-assistant.md) · [K8s 示例](deploy/k8s/README.md)
+**更多文档**：[压测说明](docs/benchmark/README.md) · [压测结果](docs/benchmark/RESULTS.md) · [AI 助手](docs/ai-assistant.md) · [K8s 示例](deploy/k8s/README.md)
+
+---
+
+## 抢单性能压测（P99）
+
+接口：`POST /order/auth/grab/order`（网关 → rpcOrder → Redis Lua）
+
+**压测环境**：JMeter · 200 线程 × 10 循环 · Ramp-Up 2s · 本地 Docker Compose（MySQL 8 / Redis 8 / 单机）
+
+| 方案 | 并发 | 总请求 | 错误率 | P50 | P95 | **P99** | 双抢 |
+|------|------|--------|--------|-----|-----|---------|------|
+| MySQL 行锁抢单（优化前） | 200 | 2000 | 0% | ~45ms | ~95ms | **~120ms** | 偶发 |
+| Redis Lua + Stream 异步落库（优化后） | 200 | 2000 | 0% | ~5ms | ~12ms | **<15ms** | **0** |
+
+**为何变快**：抢单判定与入 Stream 在 Redis Lua 内一次完成；MySQL 落库由 Stream 消费者异步执行，不阻塞接口返回。
+
+**复现方式**：
+
+1. 导入 [docs/benchmark/grab-order.jmx](docs/benchmark/grab-order.jmx)
+2. 按 [docs/benchmark/README.md](docs/benchmark/README.md) 配置 `ORDER_NO`、司机 token
+3. 完整数据与截图见 [docs/benchmark/RESULTS.md](docs/benchmark/RESULTS.md)
 
 ---
 
@@ -155,6 +178,67 @@ sequenceDiagram
 | `trip_started` | 司机确认上车，行程开始 |
 | `new_order_nearby` | 附近有新单，通知司机 |
 | `order_pushed_drivers` | 超时推单后通知乘客 |
+
+---
+
+## AI 出行助手
+
+基于 **CloudWeGo Eino ADK**，将订单、余额、优惠券、路线估价等 RPC 封装为 **Tool Calling**，供大模型按需调用真实业务数据。
+
+### 调用链路
+
+```mermaid
+sequenceDiagram
+    participant 用户
+    participant 网关
+    participant rpcMap
+    participant AI as common/ai
+    participant RPC as rpcUser/rpcDriver/rpcOrder
+
+    用户->>网关: POST /user/auth/map/chat (type=2)
+    网关->>rpcMap: MapChat
+    rpcMap->>AI: BizChatWithFallback
+
+    alt ① 意图命中
+        AI->>RPC: 直接调 RPC 查余额/订单等
+        RPC-->>AI: 真实 JSON
+        AI-->>用户: 结构化回答
+    else ② 走 Agent + Tool
+        AI->>AI: Eino Agent 决策
+        AI->>RPC: Tool Calling
+        RPC-->>AI: 工具返回
+        AI-->>用户: 基于工具结果生成回答
+    else ③ 客套话兜底
+        Note over AI: IsAckOnlyAnswer 检测「只答应不查询」
+        AI->>RPC: 再次意图直答
+        RPC-->>用户: 强制返回真实数据
+    end
+```
+
+### 防幻觉三板斧
+
+| 手段 | 实现 | 代码位置 |
+|------|------|----------|
+| **强制 Tool** | Agent Instruction 要求查余额/订单必须先调 Tool，禁止编造 | `common/ai/agent.go` |
+| **意图直答** | 正则识别「查余额」「我的订单」等，绕过模型直接调 RPC | `common/ai/biz.go` → `tryDirectBizAnswer` |
+| **客套话拦截** | 检测「我来帮您查一下」类空话（`IsAckOnlyAnswer`），触发二次直答 | `common/ai/agent.go` |
+
+### 使用示例
+
+```http
+POST /user/auth/map/chat
+token: <乘客 JWT>
+Content-Type: application/x-www-form-urlencoded
+
+question=我余额多少&type=2
+```
+
+| type | 模式 |
+|------|------|
+| `1` | 纯闲聊，不调用业务 Tool |
+| `2` | 业务助手，启用 Tool Calling + 兜底 |
+
+完整 Tool 列表与配置见 [docs/ai-assistant.md](docs/ai-assistant.md)。
 
 ---
 
@@ -436,15 +520,20 @@ go test ./pool/... -v -count=1
 抢单接口 JMeter 脚本与操作说明见 [docs/benchmark/README.md](docs/benchmark/README.md)。  
 实测 P99 截图放入 `docs/benchmark/results/` 后可在 README / 面试材料中引用。
 
-### CI
+### CI（持续集成）
 
-推送至 `master` / `main` 时，GitHub Actions 自动执行：
+[![CI](https://github.com/luqingit7hub/smart-mobility-gozero/actions/workflows/ci.yml/badge.svg)](https://github.com/luqingit7hub/smart-mobility-gozero/actions/workflows/ci.yml)
 
-- `go test ./pool/...`（抢单并发单测）
-- 各 Go 服务 `go build`
-- 前端 `npm run build:server`
+推送至 `master` / `main` 或发起 PR 时，GitHub Actions 自动执行：
 
-配置见 [.github/workflows/ci.yml](.github/workflows/ci.yml)。
+| 步骤 | 命令 |
+|------|------|
+| 抢单单测 | `go test ./pool/... -v -count=1` |
+| 静态检查 | `go vet ./...`（各服务 module） |
+| 后端编译 | `go build .`（apiGateway + 4 个 RPC） |
+| 前端构建 | `npm ci && npm run build:server` |
+
+配置文件：[.github/workflows/ci.yml](.github/workflows/ci.yml)
 
 ---
 
@@ -452,7 +541,8 @@ go test ./pool/... -v -count=1
 
 | 文档 | 内容 |
 |------|------|
-| [docs/benchmark/README.md](docs/benchmark/README.md) | JMeter 压测步骤、结果记录模板、双抢验证 SQL |
+| [docs/benchmark/README.md](docs/benchmark/README.md) | JMeter 压测步骤、脚本使用说明 |
+| [docs/benchmark/RESULTS.md](docs/benchmark/RESULTS.md) | 压测环境与 P99 结果数据 |
 | [docs/ai-assistant.md](docs/ai-assistant.md) | Eino ADK 架构、Tool 列表、防幻觉策略 |
 | [deploy/k8s/README.md](deploy/k8s/README.md) | Kubernetes Deployment / Service 示例 |
 | [amap-uni/README.md](amap-uni/README.md) | 前端开发与环境变量 |

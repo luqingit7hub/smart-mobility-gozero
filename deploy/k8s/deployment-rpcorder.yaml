@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rpcorder
+  namespace: amap
+  labels:
+    app: rpcorder
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rpcorder
+  template:
+    metadata:
+      labels:
+        app: rpcorder
+    spec:
+      containers:
+        - name: rpcorder
+          image: lqdockerhub3214/amap-rpcorder:0.1
+          ports:
+            - containerPort: 8083
+              name: grpc
+          volumeMounts:
+            - name: nacos-config
+              mountPath: /app/common/yaml/nacos.yaml
+              subPath: nacos.yaml
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            tcpSocket:
+              port: 8083
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: nacos-config
+          configMap:
+            name: nacos-config

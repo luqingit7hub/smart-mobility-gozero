@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nacos-config
+  namespace: amap
+data:
+  nacos.yaml: |
+    NaCos:
+      Host: "nacos.example.com"
+      Port: 8848
+      NamespaceId: ""
+      User: ""
+      Password: ""
+      DataId: "amap-lq-docker"
+      Group: "DEFAULT_GROUP"

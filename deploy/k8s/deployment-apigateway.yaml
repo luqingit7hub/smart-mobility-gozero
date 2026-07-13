@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apigateway
+  namespace: amap
+  labels:
+    app: apigateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: apigateway
+  template:
+    metadata:
+      labels:
+        app: apigateway
+    spec:
+      containers:
+        - name: apigateway
+          image: lqdockerhub3214/amap-apigateway:0.1
+          ports:
+            - containerPort: 8888
+              name: http
+          volumeMounts:
+            - name: nacos-config
+              mountPath: /app/common/yaml/nacos.yaml
+              subPath: nacos.yaml
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: nacos-config
+          configMap:
+            name: nacos-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apigateway
+  namespace: amap
+spec:
+  type: LoadBalancer
+  selector:
+    app: apigateway
+  ports:
+    - name: http
+      port: 8888
+      targetPort: 8888

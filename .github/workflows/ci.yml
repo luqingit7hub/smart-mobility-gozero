@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  backend-test:
+    name: Backend Test & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache-dependency-path: |
+            amap/common/go.sum
+            amap/apiGateway/go.sum
+            amap/rpcOrder/go.sum
+
+      - name: Run grab order pool tests
+        working-directory: amap/common
+        run: go test ./pool/... -v -count=1
+
+      - name: Build apiGateway
+        working-directory: amap/apiGateway
+        run: go build .
+
+      - name: Build rpcOrder
+        working-directory: amap/rpcOrder
+        run: go build .
+
+      - name: Build rpcUser
+        working-directory: amap/rpcUser
+        run: go build .
+
+      - name: Build rpcDriver
+        working-directory: amap/rpcDriver
+        run: go build .
+
+      - name: Build rpcMap
+        working-directory: amap/rpcMap
+        run: go build .
+
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: amap-uni/package-lock.json
+
+      - name: Install and build
+        working-directory: amap-uni
+        run: |
+          npm ci
+          npm run build:server

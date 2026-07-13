@@ -23,6 +23,8 @@ cd amap/common
 go test ./pool/... -v -count=1
 ```
 
+**更多文档**：[压测说明](docs/benchmark/README.md) · [AI 助手](docs/ai-assistant.md) · [K8s 示例](deploy/k8s/README.md)
+
 ---
 
 ## 技术栈
@@ -36,7 +38,7 @@ go test ./pool/... -v -count=1
 
 **前端**
 
-- Vue 3 · Vite 6 · Vant 4 · Pinia · TypeScript
+- Vue 3 · Vite 6 · Vant 4 · Pinia · TypeScript · 百度地图 JS API
 
 **部署**
 
@@ -91,13 +93,14 @@ flowchart TB
 
 ### 微服务职责
 
-| 服务 | 端口（容器内） | 职责 |
-|------|----------------|------|
-| `apiGateway` | 8888 | HTTP 入口、JWT 鉴权、RPC 转发、WebSocket 推送 |
-| `rpcUser` | 8081 | 乘客：注册登录、实名、钱包、优惠券、订单列表、评价 |
-| `rpcDriver` | 8082 | 司机：注册登录、上下线、钱包、订单列表、评价 |
-| `rpcOrder` | 8083 | 订单：下单、抢单、行程、取消、完单；Stream / 延迟 MQ 消费者 |
-| `rpcMap` | 8084 | 地图 geocode / 路线规划、公司发券、AI MapChat |
+| 服务 | 端口（容器内） | 宿主机映射 | 职责 |
+|------|----------------|------------|------|
+| `apiGateway` | 8888 | 18888 | HTTP 入口、JWT 鉴权、RPC 转发、WebSocket 推送 |
+| `rpcUser` | 8081 | 18081 | 乘客：注册登录、实名、钱包、优惠券、订单列表、评价 |
+| `rpcDriver` | 8082 | 18082 | 司机：注册登录、上下线、钱包、订单列表、评价 |
+| `rpcOrder` | 8083 | 18083 | 订单：下单、抢单、行程、取消、完单；Stream / 延迟 MQ 消费者 |
+| `rpcMap` | 8084 | 18084 | 地图 geocode / 路线规划、公司发券、AI MapChat |
+| `web`（Nginx） | 80 | 80 | 前端静态资源；反代 `/api`、`/ws` 到网关 |
 
 > 约定：乘客 / 司机「我的订单列表」在 `rpcUser` / `rpcDriver`，不在 `rpcOrder`。
 
@@ -122,7 +125,7 @@ sequenceDiagram
     rpcOrder->>MQ: 延迟消息 6min推司机 / 10min关单
     rpcOrder->>Redis: 入抢单池 GEO+Hash
 
-    司机->>网关: 抢单 /driver/auth/grab/order
+    司机->>网关: 抢单 /order/auth/grab/order
     网关->>rpcOrder: GrabOrder
     rpcOrder->>Redis: Lua 原子抢单 + XADD
 
@@ -142,6 +145,17 @@ sequenceDiagram
 | 2 | 司机有未完成订单 |
 | 3 | 订单过期或不存在 |
 
+**WebSocket 事件类型**（`amap/common/rmq/order_message.go`）：
+
+| Event | 说明 |
+|-------|------|
+| `driver_accepted` | 司机接单，通知乘客 |
+| `order_cancelled` | 订单取消 |
+| `order_completed` | 行程完单 |
+| `trip_started` | 司机确认上车，行程开始 |
+| `new_order_nearby` | 附近有新单，通知司机 |
+| `order_pushed_drivers` | 超时推单后通知乘客 |
+
 ---
 
 ## 快速启动（Docker Compose）
@@ -154,11 +168,20 @@ sequenceDiagram
 ### 1. 准备环境变量
 
 ```bash
-cp .env.example .env.local
-# 默认即可：MYSQL_ROOT_PASSWORD=root  MYSQL_DATABASE=amap
+cp .env.example .env
 ```
 
-> `.env.local` 仅用于本机，已被 `.gitignore` 忽略，不会提交到 Git。
+| 变量 | 默认值 | 作用 |
+|------|--------|------|
+| `MYSQL_ROOT_PASSWORD` | `root` | MySQL root 密码 |
+| `MYSQL_DATABASE` | `amap` | 初始化数据库名 |
+
+**说明**：
+
+- **`.env.example`**：提交到 Git 的**模板**，只含占位/默认值，不含真实密钥
+- **`.env`**：本机实际使用，由你复制生成，**已被 `.gitignore` 忽略**
+- Docker Compose **自动读取项目根目录的 `.env`** 来填充 `${MYSQL_ROOT_PASSWORD}` 等变量
+- 请勿将 `.env` 提交到 Git
 
 ### 2. 一键启动
 
@@ -168,6 +191,12 @@ docker compose up -d --build
 
 首次构建需下载镜像与编译 Go 服务，约 5～15 分钟（视网络而定）。
 
+生产环境拉取预构建镜像：
+
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
+
 ### 3. 访问地址
 
 | 服务 | 地址 |
@@ -175,6 +204,7 @@ docker compose up -d --build
 | **前端 H5** | http://localhost |
 | **API 网关** | http://localhost:18888 |
 | **RabbitMQ 管理台** | http://localhost:15672（guest / guest） |
+| **Elasticsearch** | http://localhost:9201 |
 | **MySQL** | localhost:3306 |
 | **Redis** | localhost:6379 |
 | **Etcd** | localhost:2379 |
@@ -201,26 +231,32 @@ docker compose down -v     # 停止并删除 MySQL / Redis / ES 数据卷
 
 适合改代码、热重载前端时使用。
 
-### 1. 启动基础设施
+### 方式 A：一键启动全部后端（推荐）
 
 ```bash
+# 先启动中间件
 docker compose up -d mysql redis rabbitmq etcd elasticsearch
+
+# 在 amap/ 目录下一键拉起 4 个 RPC + 网关
+cd amap
+go run main.go
 ```
 
-### 2. 启动后端（各开一个终端）
+`amap/main.go` 会按顺序 `go run` 启动 rpcUser → rpcDriver → rpcOrder → rpcMap → apiGateway，Ctrl+C 统一退出。
+
+### 方式 B：分终端手动启动
 
 ```bash
-# 在 amap/ 下，按依赖顺序启动
-cd amap/rpcUser   && go run .
-cd amap/rpcDriver && go run .
-cd amap/rpcOrder  && go run .
-cd amap/rpcMap    && go run .
+cd amap/rpcUser    && go run .
+cd amap/rpcDriver  && go run .
+cd amap/rpcOrder   && go run .
+cd amap/rpcMap     && go run .
 cd amap/apiGateway && go run .
 ```
 
 确保 `amap/common/yaml/nacos.yaml` 指向可连通的 Nacos，并拉取 `amap-lq` 配置（MySQL、Redis、第三方 Key 等）。
 
-### 3. 启动前端
+### 启动前端
 
 ```bash
 cd amap-uni
@@ -230,7 +266,7 @@ npm run dev
 
 访问 http://localhost:5173 ，`/api` 与 `/ws` 已代理到 `127.0.0.1:8888`。
 
-### 4. 编译检查
+### 编译检查
 
 ```bash
 cd amap/apiGateway && go build .
@@ -241,54 +277,142 @@ cd amap-uni && npm run build
 
 ## 配置说明
 
-### Nacos
+### Nacos（业务配置中心）
 
-业务配置（数据库、Redis、支付宝、短信、AI 模型等）通过 **Nacos** 下发，不在仓库中硬编码密钥。
+数据库连接、Redis、支付宝、短信、AI 模型 Key 等**敏感配置**通过 Nacos 下发，不在仓库硬编码。
 
-| 环境 | 配置文件 | DataId |
-|------|----------|--------|
-| 本地开发 | `amap/common/yaml/nacos.yaml` | `amap-lq` |
-| Docker | `amap/common/yaml/nacos.docker.yaml`（挂载进容器） | `amap-lq-docker` |
+| 环境 | 连接配置文件 | DataId |
+|------|--------------|--------|
+| 本地 `go run` | `amap/common/yaml/nacos.yaml` | `amap-lq` |
+| Docker 容器内 | `nacos.docker.yaml` 挂载为 `/app/common/yaml/nacos.yaml` | `amap-lq-docker` |
 
-克隆后若无法连接 Nacos，需自行搭建配置中心，或在本地 Nacos 中创建对应 DataId 的配置项。
+克隆后若无法连接 Nacos，需自行搭建配置中心并创建对应 DataId，或修改 yaml 指向你的 Nacos 地址。
 
-### 环境变量文件约定
+### 环境变量文件（仓库根目录）
 
-| 文件 | 是否提交 Git | 用途 |
-|------|--------------|------|
-| `.env.example` | ✅ | 模板，仅含占位符 |
-| `.env.local` | ❌ | 本机 docker-compose 用（MySQL 密码等） |
+| 文件 | 提交 Git | 谁读取 | 用途 |
+|------|----------|--------|------|
+| **`.env.example`** | ✅ 是 | 人看 | 模板：列出 docker-compose 需要的变量名与示例值 |
+| **`.env`** | ❌ 否 | **Docker Compose** | 本机真实值：`cp .env.example .env` 后修改 |
+
+### 前端环境变量（`amap-uni/`）
+
+| 文件 | 提交 Git | 用途 |
+|------|----------|------|
+| `.env.example` | ✅ | 模板：`VITE_API_BASE_URL`、`VITE_BAIDU_MAP_AK` |
+| `.env.development` | ✅ | `npm run dev` 默认值 |
+| `.env.production` | ✅ | `npm run build` 生产构建默认值 |
+
+前端未配置 `VITE_*` 时，`src/config/env.ts` 会使用内置默认（API 走 `/api` 代理）。
 
 ---
 
-## 目录结构
+## 仓库目录全览
+
+### 根目录
 
 ```
 smart-mobility-gozero/
-├── README.md                 # 本文件
-├── docker-compose.yml        # 本地构建 + 全栈编排
-├── docker-compose.prod.yml   # 生产镜像拉取编排
-├── .env.example              # 环境变量模板
+├── README.md                 # 项目说明（本文件）
+├── AGENTS.md                 # AI / 团队协作开发约定（非业务文档）
+├── .gitignore                # Git 忽略规则（含 .env、node_modules、编译产物）
+├── .env.example              # ★ Docker 环境变量模板（MySQL 密码等）
+├── docker-compose.yml        # 本地：源码 build + 全栈编排
+├── docker-compose.prod.yml   # 生产：拉取 Docker Hub 预构建镜像
+├── .github/workflows/ci.yml  # GitHub Actions：测试 + 构建
 │
-├── amap/                     # Go 后端（go.work 工作区）
-│   ├── apiGateway/           # HTTP + WebSocket 网关
-│   ├── rpcUser/              # 乘客服务
-│   ├── rpcDriver/            # 司机服务
-│   ├── rpcOrder/             # 订单服务（含 Stream / 延迟 MQ 消费者）
-│   ├── rpcMap/               # 地图 + AI 服务
-│   └── common/               # 公共库
-│       ├── pool/             # ★ 抢单池、Stream 消费者、延迟处理
-│       ├── rmq/              # RabbitMQ 封装
-│       ├── ws/               # WebSocket Hub
-│       ├── ai/               # Eino Agent + Tool Calling
-│       ├── model/            # GORM 模型
-│       └── yaml/             # Nacos 连接配置
+├── docs/
+│   ├── benchmark/            # 压测脚本、结果目录、操作说明
+│   └── ai-assistant.md       # AI 出行助手技术文档
+├── deploy/k8s/               # Kubernetes 部署示例 manifest
 │
+├── amap/                     # Go 后端 monorepo（go.work）
 └── amap-uni/                 # Vue3 H5 前端
-    └── src/
-        ├── views/passenger/  # 乘客：叫车、等单、钱包、AI
-        ├── views/driver/     # 司机：抢单大厅、行程、AI
-        └── utils/orderWs.ts  # 订单 WebSocket 客户端
+```
+
+| 路径 | 作用 |
+|------|------|
+| `README.md` | 面向访客 / 面试官的项目入口文档 |
+| `AGENTS.md` | Cursor 等 AI 工具的协作规范，开发者可选读 |
+| `.env.example` | **唯一提交的环境变量模板**；克隆后 `cp .env.example .env` 供 Compose 使用 |
+| `.gitignore` | 忽略 `.env`、`node_modules/`、`dist/`、IDE 配置等 |
+| `docker-compose.yml` | 定义 MySQL / Redis / MQ / Etcd / ES + 5 个 Go 服务 + Nginx 前端 |
+| `docker-compose.prod.yml` | 同上，但 Go/Web 镜像从 `lqdockerhub3214/*` 拉取，不在服务器编译 |
+| `.github/workflows/ci.yml` | 推送时自动跑抢单单测、Go build、前端 build |
+| `docs/` | 压测说明、AI 助手技术文档 |
+| `deploy/k8s/` | Kubernetes 部署示例（Deployment / Service / ConfigMap） |
+
+### 后端 `amap/`
+
+```
+amap/
+├── go.work / go.work.sum     # Go workspace，关联下方 6 个 module
+├── main.go                   # ★ 本地一键启动所有 RPC + 网关
+│
+├── apiGateway/               # HTTP + WebSocket 网关
+│   ├── apiGateway.api        # goctl API 定义（路由、请求体）
+│   ├── apigateway.go         # 入口：注册 HTTP + /ws/user、/ws/driver
+│   ├── etc/                  # 服务配置（端口、Etcd、RPC 超时）
+│   ├── internal/handler/     # HTTP handler（解析参数 → 调 logic）
+│   ├── internal/logic/       # 网关逻辑：鉴权后转发 RPC，不写业务
+│   ├── internal/middleware/  # JWT 鉴权中间件
+│   └── Dockerfile
+│
+├── rpcUser/                  # 乘客域 gRPC 服务
+├── rpcDriver/                # 司机域 gRPC 服务
+├── rpcOrder/                 # 订单域 gRPC 服务（含后台消费者）
+├── rpcMap/                   # 地图 + AI gRPC 服务
+│   └── 每个 RPC 服务标准结构：
+│       ├── *.proto             # gRPC 接口契约
+│       ├── *client/            # 网关 / 其他服务调用的客户端
+│       ├── internal/logic/     # 业务逻辑（一个 RPC 一个文件）
+│       ├── internal/server/    # gRPC server 实现
+│       ├── etc/*.yaml          # 服务端口、Etcd Key
+│       └── Dockerfile
+│
+└── common/                   # ★ 跨服务公共库（module: common）
+    ├── pool/                 # 抢单池 Lua、Stream 消费者、延迟关单、取消
+    ├── rmq/                  # RabbitMQ 延迟队列 + 通知交换机封装
+    ├── ws/                   # WebSocket Hub + MQ → WS 桥接
+    ├── ai/                   # Eino Agent、Tool、意图兜底
+    ├── model/                # GORM 模型（user、driver、order、coupon…）
+    ├── constants/            # Redis Key、池状态常量
+    ├── config/               # 全局变量 DataConfig、DB、Rdb
+    ├── init/                 # Nacos / MySQL / Redis / ES 初始化
+    ├── pkg/                  # 第三方 SDK 封装（支付宝、短信、百度地图、七牛…）
+    └── yaml/                 # Nacos 连接地址（非业务密钥本身）
+```
+
+| 包路径 | 作用 |
+|--------|------|
+| `common/pool/` | **订单核心**：Redis GEO 抢单池、Lua 抢单、Stream 异步落库、超时推单/关单 |
+| `common/rmq/` | RabbitMQ 拓扑：延迟 DLX、通知 direct exchange、发布确认与重试 |
+| `common/ws/` | 网关内存 Hub；消费 MQ 事件推送给对应乘客/司机连接 |
+| `common/ai/` | MapChat：通用聊天 + 业务 Tool Calling + 意图直答防幻觉 |
+| `common/model/` | 表结构与 GORM 方法（含 `OrderUpdateGrabbed` 乐观锁） |
+| `common/pkg/` | 外部能力适配层，logic 不直接散落 SDK 调用 |
+| `common/init/` | 服务启动时统一初始化依赖 |
+
+### 前端 `amap-uni/`
+
+```
+amap-uni/
+├── README.md                 # 前端模块说明
+├── package.json              # 依赖与脚本
+├── vite.config.ts            # 开发服务器；/api、/ws 代理到 8888
+├── nginx.conf                # 生产容器内反代规则
+├── Dockerfile                # 构建静态资源 + Nginx 镜像
+├── .env.example              # 前端环境变量模板
+│
+└── src/
+    ├── api/                  # axios 封装：user.ts、driver.ts、map.ts
+    ├── stores/auth.ts        # Pinia：登录态、token
+    ├── components/           # 可复用组件（地图、AI 助手、订单列表）
+    ├── views/passenger/      # 乘客：叫车、等单、钱包、评价、AI
+    ├── views/driver/         # 司机：抢单大厅、行程、钱包、AI
+    ├── views/company/        # 公司发券（uid=999）
+    ├── utils/orderWs.ts      # 订单 WebSocket 客户端（断线重连）
+    └── router/index.ts       # 路由与登录守卫
 ```
 
 ---
@@ -307,6 +431,32 @@ go test ./pool/... -v -count=1
 - 订单已被抢 → 返回 `GrabCodeTaken`
 - 司机有进行中订单 → 返回 `GrabCodeBusy`
 
+### 压测
+
+抢单接口 JMeter 脚本与操作说明见 [docs/benchmark/README.md](docs/benchmark/README.md)。  
+实测 P99 截图放入 `docs/benchmark/results/` 后可在 README / 面试材料中引用。
+
+### CI
+
+推送至 `master` / `main` 时，GitHub Actions 自动执行：
+
+- `go test ./pool/...`（抢单并发单测）
+- 各 Go 服务 `go build`
+- 前端 `npm run build:server`
+
+配置见 [.github/workflows/ci.yml](.github/workflows/ci.yml)。
+
+---
+
+## 扩展文档
+
+| 文档 | 内容 |
+|------|------|
+| [docs/benchmark/README.md](docs/benchmark/README.md) | JMeter 压测步骤、结果记录模板、双抢验证 SQL |
+| [docs/ai-assistant.md](docs/ai-assistant.md) | Eino ADK 架构、Tool 列表、防幻觉策略 |
+| [deploy/k8s/README.md](deploy/k8s/README.md) | Kubernetes Deployment / Service 示例 |
+| [amap-uni/README.md](amap-uni/README.md) | 前端开发与环境变量 |
+
 ---
 
 ## 订单状态一览
@@ -318,6 +468,22 @@ go test ./pool/... -v -count=1
 | 3 | 行程中 |
 | 4 | 已完成 |
 | 5 | 已取消 |
+
+---
+
+## 常见问题
+
+**Q：`docker compose up` 报 MySQL 密码相关错误？**  
+A：确认已执行 `cp .env.example .env`，且根目录存在 `.env` 文件（不是只有 `.env.example`）。
+
+**Q：Go 服务启动后 panic 连不上 Nacos？**  
+A：检查 `amap/common/yaml/nacos.yaml` 的 Host 是否可达，Nacos 中是否存在 `amap-lq` / `amap-lq-docker` 配置。
+
+**Q：前端地图空白？**  
+A：百度地图 AK 需在控制台配置 Referer 白名单（含 `localhost`、`127.0.0.1` 或部署域名）。
+
+**Q：Elasticsearch 用来做什么？**  
+A：当前版本 ES 容器已编排入 Compose，业务代码仅初始化连接，**尚未接入搜索业务**；不影响叫车 / 抢单主流程。
 
 ---
 
